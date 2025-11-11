@@ -212,6 +212,16 @@ def get_safe_subprocess_env() -> Dict[str, str]:
         "LANG": os.getenv("LANG"),
         "LC_ALL": os.getenv("LC_ALL"),
 
+        # Windows-specific environment variables (required for Node.js/Claude Code)
+        "USERPROFILE": os.getenv("USERPROFILE"),
+        "APPDATA": os.getenv("APPDATA"),
+        "LOCALAPPDATA": os.getenv("LOCALAPPDATA"),
+        "TEMP": os.getenv("TEMP"),
+        "TMP": os.getenv("TMP"),
+        "SystemRoot": os.getenv("SystemRoot"),
+        "PATHEXT": os.getenv("PATHEXT"),
+        "COMSPEC": os.getenv("COMSPEC"),
+
         # Python-specific variables that subprocesses might need
         "PYTHONPATH": os.getenv("PYTHONPATH"),
         "PYTHONUNBUFFERED": "1",  # Useful for subprocess output
