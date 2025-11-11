@@ -4,9 +4,11 @@ Authentication router - GitHub OAuth and JWT token management
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from typing import List
 
 from core.database import get_db
 from core.schemas import Token, UserResponse, GitHubOAuthCallback
+from core.models import User
 
 router = APIRouter()
 
@@ -72,3 +74,14 @@ async def get_current_user(db: Session = Depends(get_db)):
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
         detail="User authentication not yet implemented"
     )
+
+
+@router.get("/users", response_model=List[UserResponse])
+async def list_users(db: Session = Depends(get_db)):
+    """
+    List all users
+
+    This endpoint is used for populating assignee dropdowns and filters.
+    """
+    users = db.query(User).order_by(User.username).all()
+    return users

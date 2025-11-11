@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { tasksAPI } from '../api/client'
-import { Task } from '../types'
-import { useState } from 'react'
+import { tasksAPI, usersAPI } from '../api/client'
+import { Task, User } from '../types'
+import { useState, useEffect } from 'react'
 
 const COLUMNS = [
   { id: 'backlog', title: 'Backlog' },
@@ -16,9 +16,35 @@ export default function Kanban() {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskColumn, setNewTaskColumn] = useState('backlog')
 
-  const { data: tasks = [] } = useQuery({
-    queryKey: ['tasks'],
-    queryFn: () => tasksAPI.list().then(res => res.data),
+  // Filter state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null)
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Fetch tasks with filters
+  const { data: tasks = [], isLoading } = useQuery({
+    queryKey: ['tasks', debouncedSearch, statusFilter, assigneeFilter],
+    queryFn: () => tasksAPI.list({
+      search: debouncedSearch || undefined,
+      status: statusFilter || undefined,
+      assignee: assigneeFilter || undefined,
+    }).then(res => res.data),
+  })
+
+  // Fetch users for assignee filter
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => usersAPI.list().then(res => res.data),
   })
 
   const createTaskMutation = useMutation({
@@ -55,9 +81,25 @@ export default function Kanban() {
     })
   }
 
+  const handleClearFilters = () => {
+    setSearchQuery('')
+    setStatusFilter(null)
+    setAssigneeFilter(null)
+  }
+
+  const getActiveFilterCount = () => {
+    let count = 0
+    if (debouncedSearch) count++
+    if (statusFilter) count++
+    if (assigneeFilter) count++
+    return count
+  }
+
   const getTasksByColumn = (columnId: string) => {
     return tasks.filter((task: Task) => task.status === columnId)
   }
+
+  const activeFilterCount = getActiveFilterCount()
 
   return (
     <div className="space-y-6">
@@ -91,6 +133,106 @@ export default function Kanban() {
           </button>
         </form>
       </div>
+
+      {/* Filter Panel */}
+      <div className="card p-4">
+        <div className="flex gap-4 items-center flex-wrap">
+          {/* Search Input */}
+          <div className="flex-1 min-w-[200px]">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks..."
+              className="input w-full"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div className="min-w-[150px]">
+            <select
+              value={statusFilter || ''}
+              onChange={(e) => setStatusFilter(e.target.value || null)}
+              className="input w-full"
+            >
+              <option value="">All Statuses</option>
+              {COLUMNS.map((col) => (
+                <option key={col.id} value={col.id}>
+                  {col.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Assignee Filter */}
+          <div className="min-w-[150px]">
+            <select
+              value={assigneeFilter || ''}
+              onChange={(e) => setAssigneeFilter(e.target.value || null)}
+              className="input w-full"
+            >
+              <option value="">All Assignees</option>
+              {users.map((user: User) => (
+                <option key={user.id} value={user.id}>
+                  {user.username}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Clear Filters Button */}
+          <button
+            onClick={handleClearFilters}
+            disabled={activeFilterCount === 0}
+            className={`btn ${
+              activeFilterCount > 0
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            Clear Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-2 bg-white text-blue-600 rounded-full px-2 py-0.5 text-xs font-bold">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Filter Status */}
+        <div className="mt-3 flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
+          <div>
+            {isLoading ? (
+              <span>Loading tasks...</span>
+            ) : (
+              <span>
+                Found {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                {activeFilterCount > 0 && ' (filtered)'}
+              </span>
+            )}
+          </div>
+          {activeFilterCount > 0 && (
+            <div className="text-blue-600 dark:text-blue-400 font-medium">
+              {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* No Results Message */}
+      {!isLoading && tasks.length === 0 && activeFilterCount > 0 && (
+        <div className="card p-8 text-center">
+          <p className="text-gray-600 dark:text-gray-400 text-lg">
+            No tasks found matching your filters.
+          </p>
+          <button
+            onClick={handleClearFilters}
+            className="mt-4 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+          >
+            Clear all filters
+          </button>
+        </div>
+      )}
 
       {/* Kanban Columns */}
       <div className="grid grid-cols-5 gap-4">

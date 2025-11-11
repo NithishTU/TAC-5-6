@@ -75,6 +75,12 @@ export const timeAPI = {
     apiClient.get('/time/summary', { params }),
 }
 
+// Users API
+export const usersAPI = {
+  list: () =>
+    apiClient.get('/auth/users'),
+}
+
 // GitHub API
 export const githubAPI = {
   connect: () =>
