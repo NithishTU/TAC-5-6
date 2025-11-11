@@ -12,7 +12,7 @@ from core.schemas import (
     GitHubSyncRequest,
     GitHubSyncResponse
 )
-from core.models import GitHubPR, GitHubSyncLog, User
+from core.models import GitHubPR
 
 router = APIRouter()
 
@@ -118,7 +118,7 @@ async def sync_github_data(
     Syncs PRs, commits, and/or issues based on sync_type
     """
     # TODO: Get current user ID from JWT token
-    current_user_id = "placeholder-user-id"
+    _ = "placeholder-user-id"  # Will be used when auth is implemented
 
     # TODO: Implement GitHub sync
     # 1. Validate user has GitHub token

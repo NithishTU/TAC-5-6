@@ -3,7 +3,6 @@ SQLAlchemy database models
 """
 
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Text, JSON
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid

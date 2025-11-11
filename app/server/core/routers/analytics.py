@@ -11,11 +11,9 @@ from core.database import get_db
 from core.schemas import (
     VelocityResponse,
     BurndownResponse,
-    CommitFrequency,
-    PRMetrics,
     AnalyticsSummary
 )
-from core.models import Task, TimeEntry, Sprint, SprintTask
+from core.models import Task, TimeEntry, Sprint
 
 router = APIRouter()
 

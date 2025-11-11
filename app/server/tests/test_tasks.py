@@ -2,14 +2,20 @@
 Tests for tasks router
 """
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import sys
+from pathlib import Path
 
-from server import app
-from core.database import Base, get_db
-from core.models import Task, User
+# Add parent directory to path to import server module
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
+
+from server import app  # noqa: E402
+from core.database import Base, get_db  # noqa: E402
+from core.models import Task, User  # noqa: E402
 
 # Create test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"

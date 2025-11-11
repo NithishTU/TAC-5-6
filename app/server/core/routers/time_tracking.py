@@ -11,11 +11,10 @@ from core.database import get_db
 from core.schemas import (
     TimeEntryCreate,
     TimeEntryStart,
-    TimeEntryStop,
     TimeEntryResponse,
     TimeSummary
 )
-from core.models import TimeEntry, Task
+from core.models import TimeEntry
 
 router = APIRouter()
 
@@ -33,7 +32,7 @@ async def start_timer(timer_data: TimeEntryStart, db: Session = Depends(get_db))
     # Stop any existing running timer
     existing_timer = db.query(TimeEntry).filter(
         TimeEntry.user_id == current_user_id,
-        TimeEntry.is_running == True
+        TimeEntry.is_running.is_(True)
     ).first()
 
     if existing_timer:
@@ -66,7 +65,7 @@ async def stop_timer(db: Session = Depends(get_db)):
 
     time_entry = db.query(TimeEntry).filter(
         TimeEntry.user_id == current_user_id,
-        TimeEntry.is_running == True
+        TimeEntry.is_running.is_(True)
     ).first()
 
     if not time_entry:

@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.schemas import Token, UserResponse, GitHubOAuthCallback
-from core.models import User
 
 router = APIRouter()
 
