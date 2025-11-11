@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tasksAPI } from '../api/client'
-import { Task } from '../types'
-import { useState } from 'react'
+import { Task, User } from '../types'
+import { useState, useEffect } from 'react'
 
 const COLUMNS = [
   { id: 'backlog', title: 'Backlog' },
@@ -16,9 +16,40 @@ export default function Kanban() {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskColumn, setNewTaskColumn] = useState('backlog')
 
-  const { data: tasks = [] } = useQuery({
-    queryKey: ['tasks'],
-    queryFn: () => tasksAPI.list().then(res => res.data),
+  // Filter state
+  const [searchText, setSearchText] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('all')
+
+  // Debounce search text
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  // Debounce effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [searchText])
+
+  const { data: tasks = [], isLoading } = useQuery({
+    queryKey: ['tasks', debouncedSearch, statusFilter, assigneeFilter],
+    queryFn: () => {
+      const params: { status?: string; assignee?: string; search?: string } = {}
+
+      if (debouncedSearch) {
+        params.search = debouncedSearch
+      }
+      if (statusFilter !== 'all') {
+        params.status = statusFilter
+      }
+      if (assigneeFilter !== 'all') {
+        params.assignee = assigneeFilter
+      }
+
+      return tasksAPI.list(params).then(res => res.data)
+    },
   })
 
   const createTaskMutation = useMutation({
@@ -59,6 +90,40 @@ export default function Kanban() {
     return tasks.filter((task: Task) => task.status === columnId)
   }
 
+  // Get unique assignees from all tasks
+  const uniqueAssignees: User[] = Array.from(
+    new Map(
+      tasks
+        .filter((task: Task) => task.assignee)
+        .map((task: Task) => [task.assignee!.id, task.assignee!])
+    ).values()
+  ) as User[]
+
+  // Filter handlers
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value)
+  }
+
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setStatusFilter(e.target.value)
+  }
+
+  const handleAssigneeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setAssigneeFilter(e.target.value)
+  }
+
+  const handleClearFilters = () => {
+    setSearchText('')
+    setStatusFilter('all')
+    setAssigneeFilter('all')
+  }
+
+  // Count active filters
+  const activeFiltersCount =
+    (searchText ? 1 : 0) +
+    (statusFilter !== 'all' ? 1 : 0) +
+    (assigneeFilter !== 'all' ? 1 : 0)
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -91,6 +156,99 @@ export default function Kanban() {
           </button>
         </form>
       </div>
+
+      {/* Filter Panel */}
+      <div className="card p-4">
+        <div className="flex flex-wrap gap-4 items-center">
+          {/* Search Input */}
+          <div className="flex-1 min-w-64">
+            <input
+              type="text"
+              value={searchText}
+              onChange={handleSearchChange}
+              placeholder="Search tasks..."
+              className="input w-full"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div className="min-w-40">
+            <select
+              value={statusFilter}
+              onChange={handleStatusChange}
+              className="input w-full"
+            >
+              <option value="all">All Statuses</option>
+              {COLUMNS.map((col) => (
+                <option key={col.id} value={col.id}>
+                  {col.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Assignee Filter */}
+          <div className="min-w-40">
+            <select
+              value={assigneeFilter}
+              onChange={handleAssigneeChange}
+              className="input w-full"
+              disabled={uniqueAssignees.length === 0}
+            >
+              <option value="all">All Assignees</option>
+              {uniqueAssignees.map((assignee) => (
+                <option key={assignee.id} value={assignee.id}>
+                  {assignee.username}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Clear Filters Button */}
+          <button
+            onClick={handleClearFilters}
+            className={`btn ${
+              activeFiltersCount > 0
+                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+            }`}
+            disabled={activeFiltersCount === 0}
+          >
+            Clear Filters
+            {activeFiltersCount > 0 && (
+              <span className="ml-2 px-2 py-0.5 bg-white text-blue-600 rounded-full text-xs font-semibold">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Results Count */}
+        <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+          {isLoading ? (
+            <span>Loading tasks...</span>
+          ) : (
+            <span>
+              {tasks.length} task{tasks.length !== 1 ? 's' : ''} found
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Empty State */}
+      {!isLoading && tasks.length === 0 && activeFiltersCount > 0 && (
+        <div className="card p-8 text-center">
+          <p className="text-gray-600 dark:text-gray-400 text-lg">
+            No tasks found matching your filters
+          </p>
+          <button
+            onClick={handleClearFilters}
+            className="mt-4 btn-primary"
+          >
+            Clear Filters
+          </button>
+        </div>
+      )}
 
       {/* Kanban Columns */}
       <div className="grid grid-cols-5 gap-4">

@@ -6,6 +6,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import sys
+from pathlib import Path
+
+# Add parent directory to path to import server module
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from server import app
 from core.database import Base, get_db
@@ -168,3 +173,173 @@ def test_filter_tasks_by_status(client):
     data = response.json()
     assert len(data) == 1
     assert data[0]["status"] == "todo"
+
+
+def test_search_tasks_by_title(client):
+    """Test searching tasks by title"""
+    # Create tasks with different titles
+    client.post("/api/tasks/", json={"title": "Implement authentication", "status": "todo"})
+    client.post("/api/tasks/", json={"title": "Fix login bug", "status": "todo"})
+    client.post("/api/tasks/", json={"title": "Update documentation", "status": "done"})
+
+    # Search by title
+    response = client.get("/api/tasks/?search=authentication")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert "authentication" in data[0]["title"].lower()
+
+
+def test_search_tasks_by_description(client):
+    """Test searching tasks by description"""
+    # Create tasks with different descriptions
+    client.post("/api/tasks/", json={
+        "title": "Task 1",
+        "description": "Add JWT-based authentication system",
+        "status": "todo"
+    })
+    client.post("/api/tasks/", json={
+        "title": "Task 2",
+        "description": "Fix the login form validation",
+        "status": "todo"
+    })
+
+    # Search by description keyword
+    response = client.get("/api/tasks/?search=JWT")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert "JWT" in data[0]["description"]
+
+
+def test_search_tasks_case_insensitive(client):
+    """Test that search is case-insensitive"""
+    # Create task
+    client.post("/api/tasks/", json={
+        "title": "Implement Authentication Feature",
+        "status": "todo"
+    })
+
+    # Search with lowercase
+    response = client.get("/api/tasks/?search=authentication")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+
+    # Search with uppercase
+    response = client.get("/api/tasks/?search=AUTHENTICATION")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+
+    # Search with mixed case
+    response = client.get("/api/tasks/?search=AuThEnTiCaTiOn")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+
+
+def test_filter_by_assignee(client):
+    """Test filtering tasks by assignee"""
+    # Create users first
+    db = next(override_get_db())
+    user1 = User(username="user1", email="user1@example.com")
+    user2 = User(username="user2", email="user2@example.com")
+    db.add(user1)
+    db.add(user2)
+    db.commit()
+    db.refresh(user1)
+    db.refresh(user2)
+
+    # Create tasks with different assignees
+    task1 = Task(title="Task 1", status="todo", assignee_id=user1.id, created_by=user1.id)
+    task2 = Task(title="Task 2", status="todo", assignee_id=user2.id, created_by=user2.id)
+    task3 = Task(title="Task 3", status="todo", created_by=user1.id)  # No assignee
+    db.add(task1)
+    db.add(task2)
+    db.add(task3)
+    db.commit()
+
+    # Filter by first user
+    response = client.get(f"/api/tasks/?assignee={user1.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["assignee_id"] == user1.id
+
+    # Filter by second user
+    response = client.get(f"/api/tasks/?assignee={user2.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["assignee_id"] == user2.id
+
+    db.close()
+
+
+def test_combined_filters(client):
+    """Test combining multiple filters (search + status)"""
+    # Create multiple tasks
+    client.post("/api/tasks/", json={
+        "title": "Fix authentication bug",
+        "description": "Users cannot log in",
+        "status": "todo"
+    })
+    client.post("/api/tasks/", json={
+        "title": "Implement authentication",
+        "description": "Add JWT support",
+        "status": "done"
+    })
+    client.post("/api/tasks/", json={
+        "title": "Update docs",
+        "description": "Add API documentation",
+        "status": "todo"
+    })
+
+    # Combine search and status filter
+    response = client.get("/api/tasks/?search=authentication&status=todo")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert "authentication" in data[0]["title"].lower()
+    assert data[0]["status"] == "todo"
+
+
+def test_filter_returns_empty_when_no_matches(client):
+    """Test that filtering returns empty list when no tasks match"""
+    # Create some tasks
+    client.post("/api/tasks/", json={"title": "Task 1", "status": "todo"})
+    client.post("/api/tasks/", json={"title": "Task 2", "status": "done"})
+
+    # Search for non-existent term
+    response = client.get("/api/tasks/?search=nonexistent")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 0
+
+    # Filter by non-existent status
+    response = client.get("/api/tasks/?status=archived")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 0
+
+
+def test_search_with_special_characters(client):
+    """Test searching with special characters"""
+    # Create task with special characters
+    client.post("/api/tasks/", json={
+        "title": "Fix: User can't log in with email@example.com",
+        "status": "todo"
+    })
+
+    # Search with special characters
+    response = client.get("/api/tasks/?search=can't")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+
+    # Search with @ symbol
+    response = client.get("/api/tasks/?search=email@example")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
