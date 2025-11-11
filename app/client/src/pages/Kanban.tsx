@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tasksAPI } from '../api/client'
 import { Task } from '../types'
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 const COLUMNS = [
   { id: 'backlog', title: 'Backlog' },
@@ -16,9 +16,26 @@ export default function Kanban() {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskColumn, setNewTaskColumn] = useState('backlog')
 
-  const { data: tasks = [] } = useQuery({
-    queryKey: ['tasks'],
-    queryFn: () => tasksAPI.list().then(res => res.data),
+  // Filter state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('')
+  const [labelFilter, setLabelFilter] = useState<string>('')
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  const { data: tasks = [], isLoading } = useQuery({
+    queryKey: ['tasks', debouncedSearch, statusFilter, labelFilter],
+    queryFn: () => tasksAPI.list({
+      search: debouncedSearch || undefined,
+      status: statusFilter || undefined,
+    }).then(res => res.data),
   })
 
   const createTaskMutation = useMutation({
@@ -55,9 +72,37 @@ export default function Kanban() {
     })
   }
 
+  // Extract unique labels from all tasks
+  const uniqueLabels = useMemo(() => {
+    const labels = new Set<string>()
+    tasks.forEach((task: Task) => {
+      task.labels?.forEach((label) => labels.add(label))
+    })
+    return Array.from(labels).sort()
+  }, [tasks])
+
+  // Filter tasks by label on frontend (since backend doesn't support label filtering)
+  const filteredTasks = useMemo(() => {
+    if (!labelFilter) return tasks
+    return tasks.filter((task: Task) =>
+      task.labels?.includes(labelFilter)
+    )
+  }, [tasks, labelFilter])
+
   const getTasksByColumn = (columnId: string) => {
-    return tasks.filter((task: Task) => task.status === columnId)
+    return filteredTasks.filter((task: Task) => task.status === columnId)
   }
+
+  const hasActiveFilters = searchQuery || statusFilter || labelFilter
+
+  const clearFilters = () => {
+    setSearchQuery('')
+    setStatusFilter('')
+    setLabelFilter('')
+  }
+
+  const totalTasks = tasks.length
+  const filteredCount = filteredTasks.length
 
   return (
     <div className="space-y-6">
@@ -90,6 +135,96 @@ export default function Kanban() {
             Add Task
           </button>
         </form>
+      </div>
+
+      {/* Filter Section */}
+      <div className="card p-4 space-y-4">
+        <div className="flex flex-wrap gap-4 items-center">
+          {/* Search Input */}
+          <div className="flex-1 min-w-64">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks..."
+              className="input w-full"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div className="min-w-40">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="input w-full"
+            >
+              <option value="">All Statuses</option>
+              <option value="backlog">Backlog</option>
+              <option value="todo">To Do</option>
+              <option value="in_progress">In Progress</option>
+              <option value="in_review">In Review</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+
+          {/* Label Filter */}
+          <div className="min-w-40">
+            <select
+              value={labelFilter}
+              onChange={(e) => setLabelFilter(e.target.value)}
+              className="input w-full"
+              disabled={uniqueLabels.length === 0}
+            >
+              <option value="">All Labels</option>
+              {uniqueLabels.map((label) => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Clear Filters Button */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors"
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+
+        {/* Active Filters & Count */}
+        <div className="flex flex-wrap gap-2 items-center text-sm">
+          {isLoading && (
+            <span className="text-gray-600 dark:text-gray-400">Loading...</span>
+          )}
+          {!isLoading && hasActiveFilters && (
+            <>
+              {searchQuery && (
+                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 rounded">
+                  Searching: {searchQuery}
+                </span>
+              )}
+              {statusFilter && (
+                <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded">
+                  Status: {COLUMNS.find(c => c.id === statusFilter)?.title}
+                </span>
+              )}
+              {labelFilter && (
+                <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200 rounded">
+                  Label: {labelFilter}
+                </span>
+              )}
+            </>
+          )}
+          {!isLoading && (
+            <span className="text-gray-600 dark:text-gray-400 ml-auto">
+              {hasActiveFilters ? `Showing ${filteredCount} of ${totalTasks} tasks` : `${totalTasks} tasks`}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Kanban Columns */}

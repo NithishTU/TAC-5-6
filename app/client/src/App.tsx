@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useState } from 'react'
 import Dashboard from './pages/Dashboard'
 import Kanban from './pages/Kanban'
 import TimeTracker from './pages/TimeTracker'

@@ -173,3 +173,122 @@ def test_filter_tasks_by_status(client):
     data = response.json()
     assert len(data) == 1
     assert data[0]["status"] == "todo"
+
+
+def test_search_tasks_by_title(client):
+    """Test searching tasks by title"""
+    # Create tasks with different titles
+    client.post("/api/tasks/", json={"title": "Implement authentication", "status": "todo"})
+    client.post("/api/tasks/", json={"title": "Design login page", "status": "todo"})
+    client.post("/api/tasks/", json={"title": "Write API tests", "status": "done"})
+
+    # Search for tasks containing "auth"
+    response = client.get("/api/tasks/?search=auth")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert "authentication" in data[0]["title"].lower()
+
+
+def test_search_tasks_by_description(client):
+    """Test searching tasks by description"""
+    # Create tasks with different descriptions
+    client.post(
+        "/api/tasks/",
+        json={"title": "Task 1", "description": "Implement user authentication system", "status": "todo"}
+    )
+    client.post(
+        "/api/tasks/",
+        json={"title": "Task 2", "description": "Design dashboard layout", "status": "todo"}
+    )
+
+    # Search for tasks with "authentication" in description
+    response = client.get("/api/tasks/?search=authentication")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert "authentication" in data[0]["description"].lower()
+
+
+def test_search_tasks_case_insensitive(client):
+    """Test that search is case-insensitive"""
+    client.post("/api/tasks/", json={"title": "UPPERCASE TASK", "status": "todo"})
+    client.post("/api/tasks/", json={"title": "lowercase task", "status": "todo"})
+
+    # Search with lowercase
+    response = client.get("/api/tasks/?search=uppercase")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+
+    # Search with uppercase
+    response = client.get("/api/tasks/?search=LOWERCASE")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+
+
+def test_search_tasks_partial_match(client):
+    """Test that search performs partial matching"""
+    client.post("/api/tasks/", json={"title": "Implement authentication", "status": "todo"})
+    client.post("/api/tasks/", json={"title": "Design page", "status": "todo"})
+
+    # Search with partial word
+    response = client.get("/api/tasks/?search=authen")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert "authentication" in data[0]["title"].lower()
+
+
+def test_search_tasks_no_results(client):
+    """Test searching with no matching results"""
+    client.post("/api/tasks/", json={"title": "Task 1", "status": "todo"})
+    client.post("/api/tasks/", json={"title": "Task 2", "status": "todo"})
+
+    # Search for non-existent term
+    response = client.get("/api/tasks/?search=nonexistent")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 0
+
+
+def test_search_tasks_empty_query(client):
+    """Test that empty search returns all tasks"""
+    client.post("/api/tasks/", json={"title": "Task 1", "status": "todo"})
+    client.post("/api/tasks/", json={"title": "Task 2", "status": "done"})
+
+    # Search with empty string
+    response = client.get("/api/tasks/?search=")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+
+
+def test_combine_search_and_status_filters(client):
+    """Test combining search and status filters"""
+    # Create tasks with different statuses and titles
+    client.post("/api/tasks/", json={"title": "Fix authentication bug", "status": "todo"})
+    client.post("/api/tasks/", json={"title": "Fix navigation bug", "status": "done"})
+    client.post("/api/tasks/", json={"title": "Implement authentication", "status": "done"})
+
+    # Search for "authentication" with status filter "done"
+    response = client.get("/api/tasks/?search=authentication&status=done")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert "authentication" in data[0]["title"].lower()
+    assert data[0]["status"] == "done"
+
+
+def test_search_tasks_special_characters(client):
+    """Test searching with special characters"""
+    client.post("/api/tasks/", json={"title": "Task with @special #chars", "status": "todo"})
+    client.post("/api/tasks/", json={"title": "Normal task", "status": "todo"})
+
+    # Search for special characters
+    response = client.get("/api/tasks/?search=@special")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert "@special" in data[0]["title"]
