@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git commit:*)",
+      "Bash(echo:*)",
+      "Bash(where claude:*)",
+      "Bash(git remote:*)",
+      "Bash(git init:*)",
+      "Bash(pip install:*)",
+      "Bash(./scripts/scripts/copy_dot_env.sh:*)",
+      "Bash(./scripts/scripts/reset_db.sh:*)",
+      "Bash(curl:*)",
+      "Bash(cat:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
