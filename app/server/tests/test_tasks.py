@@ -15,7 +15,6 @@ from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 from server import app  # noqa: E402
 from core.database import Base, get_db  # noqa: E402
-from core.models import Task, User  # noqa: E402
 
 # Create test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
