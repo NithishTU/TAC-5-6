@@ -183,9 +183,9 @@ def check_claude_code() -> CheckResult:
             "--dangerously-skip-permissions",
         ]
 
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding='utf-8') as f:
             result = subprocess.run(
-                cmd, stdout=f, stderr=subprocess.PIPE, text=True, env=env, timeout=30
+                cmd, stdout=f, stderr=subprocess.PIPE, text=True, encoding='utf-8', env=env, timeout=30
             )
 
         if result.returncode != 0:
@@ -198,7 +198,7 @@ def check_claude_code() -> CheckResult:
         response_text = ""
 
         try:
-            with open(output_file, "r") as f:
+            with open(output_file, "r", encoding='utf-8') as f:
                 for line in f:
                     if line.strip():
                         msg = json.loads(line)
