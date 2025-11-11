@@ -13,7 +13,20 @@
       "Bash(./scripts/scripts/reset_db.sh:*)",
       "Bash(curl:*)",
       "Bash(cat:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(gh auth:*)",
+      "Bash(export GITHUB_REPO_URL=\"https://github.com/NithishTU/TAC-5-6\")",
+      "Bash(gh issue view:*)",
+      "Bash(export CLAUDE_CODE_PATH=\"claude\")",
+      "Bash(test:*)",
+      "Bash(claude auth:*)",
+      "Bash(./run_adw.sh:*)",
+      "Bash(python -u:*)",
+      "Bash(export GITHUB_PAT=\"\")",
+      "Bash(python -c \"import subprocess; result = subprocess.run([''claude'', ''--version''], capture_output=True, text=True); print(f''Return code: {result.returncode}''); print(f''stdout: {result.stdout}''); print(f''stderr: {result.stderr}'')\")",
+      "Bash(jq:*)",
+      "Bash(export CLAUDE_CODE_PATH=\"C:/Users/Nithish/AppData/Roaming/npm/claude.cmd\")",
+      "Bash(python -c \"import subprocess; result = subprocess.run([''C:/Users/Nithish/AppData/Roaming/npm/claude.cmd'', ''--version''], capture_output=True, text=True, timeout=10); print(f''RC: {result.returncode}''); print(f''Out: {result.stdout[:200]}''); print(f''Err: {result.stderr[:200]}'')\")"
     ],
     "deny": [],
     "ask": []

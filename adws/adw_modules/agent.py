@@ -89,7 +89,7 @@ def parse_jsonl_output(
         Tuple of (all_messages, result_message) where result_message is None if not found
     """
     try:
-        with open(output_file, "r") as f:
+        with open(output_file, "r", encoding="utf-8", errors="replace") as f:
             # Read all lines and parse each as JSON
             messages = [json.loads(line) for line in f if line.strip()]
 
@@ -121,9 +121,9 @@ def convert_jsonl_to_json(jsonl_file: str) -> str:
     # Parse the JSONL file
     messages, _ = parse_jsonl_output(jsonl_file)
 
-    # Write as JSON array
-    with open(json_file, "w") as f:
-        json.dump(messages, f, indent=2)
+    # Write as JSON array (use UTF-8 encoding explicitly)
+    with open(json_file, "w", encoding="utf-8") as f:
+        json.dump(messages, f, indent=2, ensure_ascii=False)
 
     print(f"Created JSON file: {json_file}")
     return json_file
@@ -164,9 +164,9 @@ def save_prompt(prompt: str, adw_id: str, agent_name: str = "ops") -> None:
     prompt_dir = os.path.join(project_root, "agents", adw_id, agent_name, "prompts")
     os.makedirs(prompt_dir, exist_ok=True)
 
-    # Save prompt to file
+    # Save prompt to file (use UTF-8 encoding explicitly)
     prompt_file = os.path.join(prompt_dir, f"{command_name}.txt")
-    with open(prompt_file, "w") as f:
+    with open(prompt_file, "w", encoding="utf-8") as f:
         f.write(prompt)
 
     print(f"Saved prompt to: {prompt_file}")
@@ -202,10 +202,10 @@ def prompt_claude_code(request: AgentPromptRequest) -> AgentPromptResponse:
     env = get_claude_env()
 
     try:
-        # Execute Claude Code and pipe output to file
-        with open(request.output_file, "w") as f:
+        # Execute Claude Code and pipe output to file (use UTF-8 encoding explicitly)
+        with open(request.output_file, "w", encoding="utf-8") as f:
             result = subprocess.run(
-                cmd, stdout=f, stderr=subprocess.PIPE, text=True, env=env
+                cmd, stdout=f, stderr=subprocess.PIPE, text=True, env=env, encoding="utf-8", errors="replace"
             )
 
         if result.returncode == 0:
@@ -239,7 +239,7 @@ def prompt_claude_code(request: AgentPromptRequest) -> AgentPromptResponse:
                 )
             else:
                 # No result message found, return raw output
-                with open(request.output_file, "r") as f:
+                with open(request.output_file, "r", encoding="utf-8", errors="replace") as f:
                     raw_output = f.read()
                 return AgentPromptResponse(
                     output=raw_output, success=True, session_id=None
